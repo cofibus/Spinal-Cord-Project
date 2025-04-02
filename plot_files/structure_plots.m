@@ -1,4 +1,3 @@
-% MN pool without:
 clear
 load('N_wo.mat');
 load('N_w.mat');
