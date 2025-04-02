@@ -1,0 +1,91 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(Matrix)
+library(dplyr)
+library(tibble)
+library(CellChat)
+library(NeuronChat)
+
+counts_m <- readMM("C:/Users/Jakob/Downloads/Sabrina/Single Cell RNA 2/filtered_neurons_doublets.mtx")
+barcodes <- read.table("C:/Users/Jakob/Downloads/Sabrina/Single Cell RNA 2/filtered_neurons_doublets_barcodes.tsv", header = FALSE, col.names = "cell_id")
+genes <- read.table("C:/Users/Jakob/Downloads/Sabrina/Single Cell RNA 2/filtered_neurons_doublets_genes.tsv", header = FALSE, col.names = "gene_id")
+labels <- read.csv("C:/Users/Jakob/Downloads/Sabrina/Single Cell RNA 2/filtered_neurons_doublets_labels.csv")
+```
+
+```{r}
+dim(genes) # n cols
+dim(barcodes) # cells, n rows
+dim(labels)
+dim(counts_m)
+```
+
+```{r}
+counts_df <- as.data.frame(as.matrix(counts_m))
+```
+
+```{r}
+rownames(counts_df) <- barcodes$cell_id
+colnames(counts_df) <- genes$gene_id
+```
+
+```{r}
+counts_df$cluster = labels$final_cluster_assignment
+counts_df
+```
+
+```{r}
+counts_df_filtered <- counts_df %>% 
+  filter(cluster != "Garbage")
+```
+
+```{r}
+x <- createNeuronChat(t(as.matrix(counts_df_filtered[,1:(dim(counts_df_filtered)[2]-1)])),DB='mouse',group.by = counts_df_filtered$cluster)
+```
+
+```{r}
+x <- run_NeuronChat(x,M=100)
+net_aggregated_x <- net_aggregation(x@net,method = 'weight')
+```
+
+```{r}
+length(unique(colnames(net_aggregated_x)))
+unique(colnames(net_aggregated_x))
+```
+
+CSV file with prob. matrix
+
+```{r}
+write.csv(net_aggregated_x, file = "neuronchat_network1.csv", row.names = TRUE)
+```
+
+Matlab file with prob. matrix
+
+```{r}
+library(R.matlab)
+
+writeMat("neuronchat_network1.mat", x = net_aggregated_x)
+writeMat("neuronchat_object.mat", x = x)
+```
+
+```{r}
+interaction_names <- names(x@net0)
+write.table(interaction_names, file = "interaction_names.txt", 
+            row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+```
+
+Save object and matrix in .rds for R usage.
+
+```{r}
+saveRDS(x, file = "neuronchat_object.rds")
+saveRDS(net_aggregated_x, file = "net_aggregated_x.rds")
+```
+
+```{r}
+write.csv(x@ligand.abundance, file = "ligand_abundance.csv", row.names = TRUE)
+write.csv(x@target.abundance, file = "target_abundance.csv", row.names = TRUE)
+```
